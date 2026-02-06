@@ -2,237 +2,198 @@
 <html lang="en-GB">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Inspiration Terminal</title>
-    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React & Framer Motion CDNs -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
     <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
-    
     <style>
-        /* Security Features: Prevent Copying */
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@700&display=swap');
         body {
+            background-color: #FFFFFF;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
-            -moz-user-select: none;
-            -ms-user-select: none;
+            touch-action: manipulation;
+        }
+        .flap-unit {
+            width: clamp(30px, 7.5vw, 60px);
+            height: clamp(45px, 11vw, 90px);
+            background: #1A1A1A;
+            border-radius: 4px;
+            perspective: 300px;
+        }
+        .flap-upper, .flap-lower {
+            position: absolute;
+            left: 0;
+            width: 100%;
+            height: 50%;
             overflow: hidden;
-            background-color: #FFFFFF;
+            background: #1A1A1A;
+            display: flex;
+            justify-content: center;
+            color: #FFFFFF;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: clamp(24px, 6vw, 48px);
         }
-
-        /* Perspective for 3D flip */
-        .flap-container {
-            perspective: 1000px;
+        .flap-upper {
+            top: 0;
+            align-items: flex-end;
+            border-bottom: 1px solid rgba(0,0,0,0.5);
+            border-radius: 4px 4px 0 0;
         }
-
-        .backface-hidden {
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
+        .flap-lower {
+            bottom: 0;
+            align-items: flex-start;
+            border-radius: 0 0 4px 4px;
         }
-
-        /* Tactical shadow for flaps */
-        .flap-shadow {
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.3), 0 2px 4px -1px rgba(0, 0, 0, 0.2);
+        .flap-text-upper { transform: translateY(50%); }
+        .flap-text-lower { transform: translateY(-50%); }
+        .hinge {
+            position: absolute;
+            top: 50%;
+            width: 100%;
+            height: 1px;
+            background: rgba(255,255,255,0.1);
+            z-index: 10;
         }
-
-        /* Hide Scrollbars */
-        ::-webkit-scrollbar { display: none; }
     </style>
-
-    <script>
-        // Security Feature: Disable Right-Click
-        document.addEventListener('contextmenu', event => event.preventDefault());
-
-        // Security Feature: Disable Shortcuts (F12, Ctrl+U, Ctrl+Shift+I, Ctrl+C)
-        document.addEventListener('keydown', (e) => {
-            if (
-                e.key === "F12" ||
-                (e.ctrlKey && (e.key === "u" || e.key === "i" || e.key === "j" || e.key === "s" || e.key === "c")) ||
-                (e.metaKey && (e.key === "u" || e.key === "i" || e.key === "j" || e.key === "s" || e.key === "c"))
-            ) {
-                e.preventDefault();
-                return false;
-            }
-        });
-
-        // Security Feature: Debugger Trap
-        setInterval(() => {
-            (function() { return false; }['constructor']('debugger')['call']());
-        }, 50);
-    </script>
 </head>
-<body>
+<body oncontextmenu="return false" onselectstart="return false" ondragstart="return false">
     <div id="root"></div>
 
     <script type="text/babel">
-        const { useState, useEffect, useCallback, useRef } = React;
+        const { useState, useEffect, useRef, useCallback } = React;
         const { motion, AnimatePresence } = window.Motion;
 
-        // Constants
-        const BOARD_SIZE = 12;
-        const ALPHABET = " ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789".split("");
-        
-        // Curation: 100 British English words (using system-specific spellings: -ize and no 'u')
-        const WORD_LIST = [
-            "ENERGIZE", "FAVOR", "VALOR", "HONOR", "RECOGNIZE", "AUTHORIZE", "MAXIMIZE", "OPTIMIZE", "BRIGHTEN", "GLOW",
-            "UPLIFT", "HEARTEN", "STRENGTH", "POWER", "VIGOR", "FOCUS", "STRIVE", "THRIVE", "SOAR", "ASCENT",
-            "NOBLE", "WORTHY", "VITAL", "ZEAL", "BOLD", "BRAVE", "MIGHTY", "KEEN", "PURE", "TRUE",
-            "ALIGN", "ARISE", "AWAKE", "BLOOM", "CHAMPION", "CONQUER", "DARING", "DRIVE", "ELATE", "EMPOWER",
-            "ENDURE", "EXALT", "EXCEL", "FAITH", "FEARLESS", "FIERCE", "FORGE", "FORTIFY", "GRIT", "GUIDE",
-            "HARMONY", "HEIGHTS", "HEROIC", "IDEALIZE", "ILLUMINE", "IMPACT", "INSPIRE", "INTENT", "JOYFUL", "KINDLE",
-            "LAUNCH", "LEADER", "LIBERATE", "LIGHT", "LUMINOUS", "MASTER", "MERIT", "MOTIVATE", "NURTURE", "PACIFY",
-            "PEAK", "PERSIST", "POISE", "PRAISE", "RADIATE", "REACH", "REFORM", "REJOICE", "RENEW", "RESOLVE",
-            "REVIVE", "RISE", "SERENE", "SHINE", "SPARK", "SPIRIT", "STEADY", "SUMMIT", "SUPPORT", "SURE",
-            "TENACITY", "TRIUMPH", "TRUST", "UNITY", "UNFOLD", "UPWARD", "VALIANT", "VICTORY", "VIRTUE", "VISION"
-        ];
+        // Security: Obfuscated Data & Trap
+        const _0x1a2b = "QUxJR04sQVdBS0UsQkxPT00sQ0FMTyxHUkFDRSxLRUVOLFBVUkUsVFJVRSxWSVRTLEJPT0VULFJFTEVBU0UsQlJJR0hURU4sRUxBVEUsRVhBTFQsR0xBRERFTixMSUdIVEVOLENIRUVSLENPTUZPUlQsRU1CT0xERU4sRk9SVElGWSxBVVRIT1JJWkUsRU5FUkdJWkUsT1JHQU5JWkUsUkVBT0xJWkUsRFJJVkUsRk9DVVMsUEVSU0lTVCxSRVNPTFZFLFNUUklWRSxGQVZPUixIT05PUixWQUxPUixSRUNPR05JWkUsTUFYSU1JWkUsT1BUSU1JWkUsVUdMSUZULFBPV0VSLFZJR09SLVNPQVIsTk9CTEUsV09SVEhZLFZFQUwsQk9MRCxCUkFWRSxNSUdIVFksQVJJU0UsQ0hBTVBJT04sQ09OUVVF搁REFSSU5HLEVORFVSRSxFWEVMLEZBSVRILERFQV JMRVNTLEZJRVJDRSxGT1JHRSxHUklULEdVSURFLEhBUk1PTlksSEVJR0hUUyxIRVJPSUMsSWRFQUxJWkUsSUxMVU1JTkUsSU1QQUNULElOU1BJUkUsSU5URU5ULEpPWUZVTCxLSU5ETEUsTEFVTkNILERFQURF搁xJQkVSQVRFLExJR0hULExVTUlOT1VTLU1BU1RFUixNRVJJVCxNT1RJVkFURSxOVVJUVVJFLFBBQ0lGWSxQRUFLLE9PSVNFUFJBSVNFVFJBRElBVEUsUkVBQ0gsUkVGT1JNLFJFSk9JQ0UsUkVORVcsUkVWSVZFLFJJU0UsU0VSRU5FLFNDSU5FLVNQQVJLLFNQSVJJVCxTVEVBRFksU1VNTUlULFNVUFBPUlQsU1VSRSxURU5BQ0lUWSxUUklVTVBILFRSVVNULFVOSVRZLFVORk9MRCxVUFdBUkQsVkFMSUFOVCxWSUNUT1JZLFZJUlRVRSxWSVNJT04=";
+        const _0x5f2d = atob(_0x1a2b).split(',');
 
-        // Audio Engine: Mechanical Click
-        const playClick = () => {
-            try {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                const audioCtx = new AudioContext();
-                const oscillator = audioCtx.createOscillator();
-                const gainNode = audioCtx.createGain();
+        (function _0x4e9a() {
+            const _0xde = function() {
+                setInterval(() => { debugger; }, 50);
+            };
+            try { _0xde(); } catch (e) {}
+        })();
 
-                oscillator.type = 'square';
-                oscillator.frequency.setValueAtTime(150, audioCtx.currentTime);
-                oscillator.frequency.exponentialRampToValueAtTime(40, audioCtx.currentTime + 0.05);
+        // Audio Engine
+        const useAudio = () => {
+            const audioCtx = useRef(null);
+            
+            const playClick = useCallback(() => {
+                if (!audioCtx.current) audioCtx.current = new (window.AudioContext || window.webkitAudioContext)();
+                const ctx = audioCtx.current;
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                
+                osc.type = 'square';
+                osc.frequency.setValueAtTime(150, ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                
+                gain.gain.setValueAtTime(0.1, ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+                
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                
+                osc.start();
+                osc.stop(ctx.currentTime + 0.1);
+            }, []);
 
-                gainNode.gain.setValueAtTime(0.05, audioCtx.currentTime);
-                gainNode.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
-
-                oscillator.connect(gainNode);
-                gainNode.connect(audioCtx.destination);
-
-                oscillator.start();
-                oscillator.stop(audioCtx.currentTime + 0.05);
-            } catch (e) { /* Audio blocked by browser policy until interaction */ }
+            return { playClick };
         };
 
-        const Flap = ({ targetChar, isSpinning, delayIndex }) => {
-            const [displayChar, setDisplayChar] = useState(" ");
-            
+        const Flap = ({ char, isSpinning }) => {
+            const [display, setDisplay] = useState(char);
+            const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ ";
+
             useEffect(() => {
-                if (!isSpinning) {
-                    setDisplayChar(targetChar);
-                    return;
+                let interval;
+                if (isSpinning) {
+                    interval = setInterval(() => {
+                        setDisplay(alphabet[Math.floor(Math.random() * alphabet.length)]);
+                    }, 80);
+                } else {
+                    setDisplay(char);
                 }
-
-                let iteration = 0;
-                const totalIterations = 8 + delayIndex; // Mechanical cycling (5-10 chars)
-                
-                const interval = setInterval(() => {
-                    setDisplayChar(ALPHABET[Math.floor(Math.random() * ALPHABET.length)]);
-                    playClick();
-                    iteration++;
-
-                    if (iteration >= totalIterations) {
-                        clearInterval(interval);
-                        setDisplayChar(targetChar);
-                        playClick();
-                    }
-                }, 70);
-
                 return () => clearInterval(interval);
-            }, [isSpinning, targetChar, delayIndex]);
+            }, [isSpinning, char]);
 
             return (
-                <div className="flap-container relative w-12 h-20 md:w-20 md:h-32 m-1">
-                    {/* Top Half */}
-                    <div className="absolute top-0 left-0 w-full h-1/2 bg-black rounded-t-lg border-b border-white/20 flex items-end justify-center overflow-hidden">
-                        <span className="text-white text-5xl md:text-7xl font-bold leading-[0] mb-[-2px]">{displayChar}</span>
-                    </div>
-                    
-                    {/* Bottom Half */}
-                    <div className="absolute bottom-0 left-0 w-full h-1/2 bg-black rounded-b-lg flex items-start justify-center overflow-hidden">
-                        <span className="text-white text-5xl md:text-7xl font-bold leading-[0] mt-[-2px] transform translate-y-[-50%]">{displayChar}</span>
-                    </div>
-
-                    {/* Animated Overlay for Flip Effect */}
-                    <AnimatePresence mode="popLayout">
+                <div className="flap-unit relative m-0.5 shadow-lg shadow-black/20">
+                    <div className="flap-upper"><span className="flap-text-upper">{display}</span></div>
+                    <div className="flap-lower"><span className="flap-text-lower">{display}</span></div>
+                    <div className="hinge"></div>
+                    <AnimatePresence>
                         {isSpinning && (
-                            <motion.div
-                                key={displayChar}
+                            <motion.div 
                                 initial={{ rotateX: 0 }}
                                 animate={{ rotateX: -180 }}
-                                transition={{ duration: 0.1, ease: "linear" }}
-                                className="absolute top-0 left-0 w-full h-1/2 bg-black rounded-t-lg origin-bottom z-10 backface-hidden flex items-end justify-center overflow-hidden"
+                                transition={{ duration: 0.08, repeat: Infinity, ease: "linear" }}
+                                style={{ transformOrigin: "bottom", zIndex: 5 }}
+                                className="absolute top-0 left-0 w-full h-1/2 bg-[#1A1A1A] border-b border-black flex justify-center items-end overflow-hidden rounded-t-sm"
                             >
-                                <span className="text-white text-5xl md:text-7xl font-bold leading-[0] mb-[-2px]">{displayChar}</span>
+                                <span className="flap-text-upper">{display}</span>
                             </motion.div>
                         )}
                     </AnimatePresence>
-
-                    {/* Middle Hinge Line */}
-                    <div className="absolute top-1/2 left-0 w-full h-[2px] bg-black z-20"></div>
                 </div>
             );
         };
 
         const App = () => {
-            const [currentWord, setCurrentWord] = useState("            ".split(""));
-            const [isSpinning, setIsSpinning] = useState(false);
+            const [word, setWord] = useState("            ".split(""));
+            const [spinning, setSpinning] = useState(false);
+            const { playClick } = useAudio();
+            const clickInterval = useRef(null);
 
-            const generateNewWord = useCallback(() => {
-                if (isSpinning) return;
+            const generate = useCallback(() => {
+                if (spinning) return;
+                playClick();
+                setSpinning(true);
                 
-                setIsSpinning(true);
-                const randomWord = WORD_LIST[Math.floor(Math.random() * WORD_LIST.length)];
-                
-                // Center the word on the 12-slot board
-                const padding = Math.floor((BOARD_SIZE - randomWord.length) / 2);
-                const displayArray = new Array(BOARD_SIZE).fill(" ");
-                for (let i = 0; i < randomWord.length; i++) {
-                    displayArray[i + padding] = randomWord[i];
-                }
+                // Audio loop during flip
+                clickInterval.current = setInterval(playClick, 100);
 
-                setCurrentWord(displayArray);
-                
-                // Reset spinning state after animation completes
-                setTimeout(() => setIsSpinning(false), 2000);
-            }, [isSpinning]);
-
-            // Initial trigger
-            useEffect(() => {
-                const timer = setTimeout(generateNewWord, 500);
-                return () => clearTimeout(timer);
-            }, []);
+                setTimeout(() => {
+                    const raw = _0x5f2d[Math.floor(Math.random() * _0x5f2d.length)].toUpperCase();
+                    const padded = raw.padStart(Math.floor((12 + raw.length) / 2), " ").padEnd(12, " ");
+                    setWord(padded.split(""));
+                    setSpinning(false);
+                    clearInterval(clickInterval.current);
+                    playClick(); // Final landing click
+                }, 3000);
+            }, [spinning, playClick]);
 
             return (
-                <div className="h-screen w-full flex flex-col items-center justify-center p-4 bg-white">
-                    {/* The Display Board */}
-                    <div className="flex flex-wrap justify-center items-center bg-zinc-100 p-6 rounded-2xl shadow-inner border border-zinc-200">
-                        {currentWord.map((char, index) => (
-                            <Flap 
-                                key={index} 
-                                targetChar={char} 
-                                isSpinning={isSpinning} 
-                                delayIndex={index}
-                            />
-                        ))}
+                <div className="h-screen w-full flex flex-col items-center justify-between py-12 px-4 bg-white">
+                    <div className="mt-8 text-zinc-300 tracking-[0.4em] font-light text-[10px] uppercase">
+                        Terminal Status: Active
                     </div>
 
-                    {/* Interaction */}
-                    <div className="mt-24">
-                        <button
-                            onClick={generateNewWord}
-                            disabled={isSpinning}
-                            className={`
-                                px-12 py-4 rounded-full border-2 border-black font-bold uppercase tracking-widest text-sm
-                                transition-all duration-300 active:scale-90
-                                ${isSpinning ? 'opacity-20 cursor-not-allowed' : 'hover:bg-black hover:text-white'}
-                            `}
-                        >
-                            Again
-                        </button>
+                    <div className="flex flex-wrap justify-center items-center gap-1">
+                        {word.map((c, i) => <Flap key={i} char={c} isSpinning={spinning} />)}
                     </div>
 
-                    {/* Footer / Status */}
-                    <div className="absolute bottom-10 text-[10px] text-zinc-300 font-mono tracking-tighter uppercase">
-                        Terminal Status: Secure // Oxford Standard -ize // No Copying
+                    <button 
+                        onClick={generate}
+                        disabled={spinning}
+                        className={`
+                            mb-12 w-full max-w-xs py-6 rounded-full font-bold tracking-[0.3em] text-sm
+                            transition-all duration-500 active:scale-95 shadow-2xl
+                            ${spinning ? 'bg-zinc-100 text-zinc-400' : 'bg-[#1A1A1A] text-white hover:bg-black'}
+                        `}
+                    >
+                        {spinning ? "GENERATING..." : "GENERATE"}
+                    </button>
+                    
+                    <div className="text-[10px] text-zinc-200 font-mono">
+                        &copy; SENIOR DEV // OXFORD STANDARD
                     </div>
                 </div>
             );
