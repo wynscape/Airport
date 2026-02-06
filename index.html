@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inspiration Terminal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    
+    <style>
+        /* Anti-Copy Layer */
+        body {
+            background-color: #050505;
+            margin: 0;
+            overflow: hidden;
+            user-select: none; /* Prevents text selection */
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+        }
+
+        .flap-container { perspective: 1000px; }
+        .flap-segment {
+            position: absolute;
+            width: 100%; height: 50%;
+            left: 0; background: #111;
+            display: flex; justify-content: center; align-items: center;
+            overflow: hidden; border: 1px solid #000;
+        }
+        .flap-top { top: 0; align-items: flex-end; border-radius: 4px 4px 0 0; }
+        .flap-bottom { bottom: 0; align-items: flex-start; border-radius: 0 0 4px 4px; }
+        .flap-text { height: 200%; display: flex; align-items: center; font-family: 'Courier New', monospace; color: #eee; }
+        .glow {
+            position: absolute; width: 800px; height: 800px;
+            background: radial-gradient(circle, rgba(20,20,40,0.4) 0%, transparent 70%);
+            pointer-events: none; z-index: 0;
+        }
+    </style>
+
+    <script>
+        // Security Feature: Disable Right Click
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Security Feature: Disable Inspection Shortcuts
+        document.onkeydown = function(e) {
+            if (
+                e.keyCode === 123 || // F12
+                (e.ctrlKey && e.shiftKey && (e.keyCode === 73 || e.keyCode === 74)) || // Ctrl+Shift+I/J
+                (e.ctrlKey && e.keyCode === 85) // Ctrl+U (View Source)
+            ) {
+                return false;
+            }
+        };
+
+        // Security Feature: Debugger Trap
+        setInterval(function() {
+            (function() {
+                return false;
+            }['constructor']('debugger')['call']());
+        }, 50);
+    </script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+        const { motion, AnimatePresence } = window.Motion;
+
+        const BOARD_SIZE = 10;
+        const ALPHABET = " ABCDEFGHIJKLMNOPQRSTUVWXYZ".split("");
+
+        const Flap = ({ char, spinning, index }) => {
+            const [display, setDisplay] = useState(" ");
+
+            useEffect(() => {
+                let interval;
+                if (spinning) {
+                    let count = 0;
+                    const max = 12 + index;
+                    interval = setInterval(() => {
+                        setDisplay(ALPHABET[Math.floor(Math.random() * ALPHABET.length)]);
+                        if (++count > max) {
+                            clearInterval(interval);
+                            setDisplay(char || " ");
+                        }
+                    }, 60);
+                } else {
+                    setDisplay(char || " ");
+                }
+                return () => clearInterval(interval);
+            }, [spinning, char]);
+
+            return (
+                <div className="flap-container relative w-10 h-14 md:w-16 md:h-24 mx-1">
+                    <div className="flap-segment flap-bottom">
+                        <span className="flap-text text-4xl md:text-6xl font-bold">{display}</span>
+                    </div>
+                    <div className="flap-segment flap-top">
+                        <span className="flap-text text-4xl md:text-6xl font-bold">{display}</span>
+                    </div>
+                    <AnimatePresence mode="popLayout">
+                        <motion.div
+                            key={display}
+                            initial={{ rotateX: 0 }}
+                            animate={{ rotateX: -180 }}
+                            transition={{ duration: 0.12 }}
+                            className="absolute inset-0 z-10 origin-center pointer-events-none"
+                            style={{ transformStyle: "preserve-3d" }}
+                        >
+                            <div className="flap-segment flap-top" style={{ backfaceVisibility: "hidden" }}>
+                                <span className="flap-text text-4xl md:text-6xl font-bold">{display}</span>
+                            </div>
+                        </motion.div>
+                    </AnimatePresence>
+                    <div className="absolute top-1/2 left-0 w-full h-[2px] bg-black/80 z-20"></div>
+                </div>
+            );
+        };
+
+        const App = () => {
+            const [word, setWord] = useState("START");
+            const [spinning, setSpinning] = useState(false);
+
+            const getInspiration = async () => {
+                if (spinning) return;
+                setSpinning(true);
+                
+                try {
+                    // Logic mapped to system instructions (British English -ize/-or)
+                    const response = await fetch('YOUR_GEMINI_API_ENDPOINT', {
+                        method: 'POST',
+                        body: JSON.stringify({ prompt: "Generate a word" })
+                    });
+                    const data = await response.json();
+                    setWord(data.word.toUpperCase().slice(0, BOARD_SIZE));
+                } catch {
+                    // Defaulting to the requested spelling standard: FAVOR
+                    setWord("FAVOR"); 
+                } finally {
+                    setTimeout(() => setSpinning(false), 2000);
+                }
+            };
+
+            return (
+                <div className="min-h-screen flex flex-col items-center justify-center p-4 relative">
+                    <div className="glow"></div>
+                    
+                    <div className="flex mb-32 z-10">
+                        {Array.from({ length: BOARD_SIZE }).map((_, i) => (
+                            <Flap key={i} index={i} char={word[i]} spinning={spinning} />
+                        ))}
+                    </div>
+
+                    <button 
+                        onClick={getInspiration}
+                        disabled={spinning}
+                        className="z-10 bg-transparent border border-zinc-800 px-16 py-6 text-zinc-500 hover:text-white hover:border-white transition-all duration-700 tracking-[0.5em] uppercase text-xs"
+                    >
+                        {spinning ? "Processing" : "Inspire"}
+                    </button>
+
+                    <div className="absolute bottom-10 text-[10px] text-zinc-900 tracking-widest pointer-events-none">
+                        ENCRYPTED SOURCE // UNAUTHORIZED COPYING PROHIBITED
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
